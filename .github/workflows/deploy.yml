@@ -11,7 +11,7 @@ jobs:
 
     steps:
     - name: Checkout Code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4   # ✅ updated version
 
     - name: Deploy to VM via SSH
       uses: appleboy/ssh-action@v0.1.6
@@ -22,18 +22,41 @@ jobs:
         script: |
           echo "🚀 Deployment started"
 
-          cd ~/temp/dummy_django_app
+          # 🔹 Go to project directory
+          cd /home/azureuser/temp/dummy_django_app || exit 1
 
+          echo "📥 Pulling latest code"
           git pull origin main
 
+          echo "🐍 Activating virtual environment"
           source venv/bin/activate
 
+          echo "📦 Installing dependencies"
           pip install -r requirements.txt
 
+          echo "🗄 Running migrations"
           python manage.py migrate
+
+          echo "📁 Collecting static files"
           python manage.py collectstatic --noinput
 
+          echo "🛑 Stopping old Gunicorn"
           pkill gunicorn || true
-          gunicorn config.wsgi:application --bind 127.0.0.1:8010 --daemon
 
-          echo "✅ Deployment done"
+          echo "🚀 Starting Gunicorn (production mode)"
+          nohup /home/azureuser/temp/dummy_django_app/venv/bin/gunicorn \
+          config.wsgi:application \
+          --bind 127.0.0.1:8010 \
+          --workers 3 \
+          > /home/azureuser/temp/dummy_django_app/gunicorn.log 2>&1 &
+
+          echo "⏳ Waiting for Gunicorn to start"
+          sleep 5
+
+          echo "🔍 Checking Gunicorn response"
+          curl http://127.0.0.1:8010 || echo "❌ Gunicorn failed to respond"
+
+          echo "🔁 Reloading Nginx"
+          sudo systemctl reload nginx
+
+          echo "✅ Deployment completed successfully"
