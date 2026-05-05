@@ -5,7 +5,7 @@ from home.views import TodoCRUDView
 from home.views import TodoCRUDView, index
 
 urlpatterns = [
-    path('', index),  # frontend
+    path('todo-ui/', index),  # frontend
 
     path('todos/', TodoCRUDView.as_view()),
     path('todos/<int:id>/', TodoCRUDView.as_view()),
